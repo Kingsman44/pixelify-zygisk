@@ -13,9 +13,9 @@ using zygisk::AppSpecializeArgs;
 using zygisk::ServerSpecializeArgs;
 
 static std::vector<std::string> PkgList = {"com.google", "com.android.chrome","com.android.vending","com.breel.wallpapers20"};
-static std::vector<std::string> P5 = {"com.google.android.googlequicksearchbox", "com.google.android.tts","com.google.android.apps.recorder"};
+static std::vector<std::string> P5 = {"com.google.android.googlequicksearchbox", "com.google.android.tts" , "com.google.android.apps.recorder"};
 static std::vector<std::string> P1 = {"com.google.android.apps.photos"};
-static std::vector<std::string> keep = {"com.google.android.GoogleCamera"};
+static std::vector<std::string> keep = {"com.google.android.GoogleCamera","com.google.android.gms"};
 
 class pixelify : public zygisk::ModuleBase {
 public:
@@ -36,66 +36,69 @@ public:
     }
 
     void injectBuild(const char *package_name,const char *model1,const char *product1,const char *finger1) {
-    if (env == nullptr) {
-        LOGW("failed to inject android.os.Build for %s due to env is null", package_name);
-        return;
+        if (env == nullptr) {
+            LOGW("failed to inject android.os.Build for %s due to env is null", package_name);
+            return;
+        }
+        LOGI("inject android.os.Build for %s ", package_name);
+        LOGI("PRODUCT:%s",product1);
+        LOGI("MODEL:%s",model1);
+        LOGI("FINGERPRINT:%s",finger1);
+
+        jclass build_class = env->FindClass("android/os/Build");
+        if (build_class == nullptr) {
+            LOGW("failed to inject android.os.Build for %s due to build is null", package_name);
+            return;
+        }
+
+        jstring product = env->NewStringUTF(product1);
+        jstring model = env->NewStringUTF(model1);
+        jstring brand = env->NewStringUTF("google");
+        jstring manufacturer = env->NewStringUTF("Google");
+        jstring finger = env->NewStringUTF(finger1);
+
+
+        jfieldID brand_id = env->GetStaticFieldID(build_class, "BRAND", "Ljava/lang/String;");
+        if (brand_id != nullptr) {
+            env->SetStaticObjectField(build_class, brand_id, brand);
+        }
+
+        jfieldID manufacturer_id = env->GetStaticFieldID(build_class, "MANUFACTURER", "Ljava/lang/String;");
+        if (manufacturer_id != nullptr) {
+            env->SetStaticObjectField(build_class, manufacturer_id, manufacturer);
+        }
+
+        jfieldID product_id = env->GetStaticFieldID(build_class, "PRODUCT", "Ljava/lang/String;");
+        if (product_id != nullptr) {
+            env->SetStaticObjectField(build_class, product_id, product);
+        }
+
+        jfieldID device_id = env->GetStaticFieldID(build_class, "DEVICE", "Ljava/lang/String;");
+        if (device_id != nullptr) {
+            env->SetStaticObjectField(build_class, device_id, product);
+        }
+
+        jfieldID model_id = env->GetStaticFieldID(build_class, "MODEL", "Ljava/lang/String;");
+        if (model_id != nullptr) {
+            env->SetStaticObjectField(build_class, model_id, model);
+        }
+
+        jfieldID finger_id = env->GetStaticFieldID(build_class, "FINGERPRINT", "Ljava/lang/String;");
+        if (finger_id != nullptr) {
+            env->SetStaticObjectField(build_class, finger_id, finger);
+        }
+
+        if(env->ExceptionCheck())
+        {
+            env->ExceptionClear();
+        }
+
+        env->DeleteLocalRef(brand);
+        env->DeleteLocalRef(manufacturer);
+        env->DeleteLocalRef(product);
+        env->DeleteLocalRef(model);
+        env->DeleteLocalRef(finger);
     }
-    LOGI("inject android.os.Build for %s ", package_name);
-
-    jclass build_class = env->FindClass("android/os/Build");
-    if (build_class == nullptr) {
-        LOGW("failed to inject android.os.Build for %s due to build is null", package_name);
-        return;
-    }
-
-    jstring product = env->NewStringUTF(product1);
-    jstring model = env->NewStringUTF(model1);
-    jstring brand = env->NewStringUTF("google");
-    jstring manufacturer = env->NewStringUTF("Google");
-    jstring finger = env->NewStringUTF(finger1);
-
-
-    jfieldID brand_id = env->GetStaticFieldID(build_class, "BRAND", "Ljava/lang/String;");
-    if (brand_id != nullptr) {
-        env->SetStaticObjectField(build_class, brand_id, brand);
-    }
-
-    jfieldID manufacturer_id = env->GetStaticFieldID(build_class, "MANUFACTURER", "Ljava/lang/String;");
-    if (manufacturer_id != nullptr) {
-        env->SetStaticObjectField(build_class, manufacturer_id, manufacturer);
-    }
-
-    jfieldID product_id = env->GetStaticFieldID(build_class, "PRODUCT", "Ljava/lang/String;");
-    if (product_id != nullptr) {
-        env->SetStaticObjectField(build_class, product_id, product);
-    }
-
-    jfieldID device_id = env->GetStaticFieldID(build_class, "DEVICE", "Ljava/lang/String;");
-    if (device_id != nullptr) {
-        env->SetStaticObjectField(build_class, device_id, product);
-    }
-
-    jfieldID model_id = env->GetStaticFieldID(build_class, "MODEL", "Ljava/lang/String;");
-    if (model_id != nullptr) {
-        env->SetStaticObjectField(build_class, model_id, model);
-    }
-
-    jfieldID finger_id = env->GetStaticFieldID(build_class, "FINGERPRINT", "Ljava/lang/String;");
-    if (finger_id != nullptr) {
-        env->SetStaticObjectField(build_class, finger_id, finger);
-    }
-
-    if(env->ExceptionCheck())
-    {
-        env->ExceptionClear();
-    }
-
-    env->DeleteLocalRef(brand);
-    env->DeleteLocalRef(manufacturer);
-    env->DeleteLocalRef(product);
-    env->DeleteLocalRef(model);
-    env->DeleteLocalRef(finger);
-}
 
 private:
     Api *api;
@@ -129,10 +132,13 @@ private:
                             type=0;
                     }
                 }
+                if (package_name.find("com.google.android.gms") != std::string::npos) {
+                    injectBuild(process,"Pixel 5","raven","google/raven/raven:12/SQ1D.220105.007/8030436:user/release-keys");
+                }
                 if (type == 1) {
                     injectBuild(process,"Pixel 6 Pro","raven","google/raven/raven:12/SQ1D.220105.007/8030436:user/release-keys");
                 } else if (type == 2) {
-                    injectBuild(process,"Pixel 5","redfin","google/redfin/redfin:12/SQ1A.220105.002/7961164:user/release-keys");    
+                    injectBuild(process,"Pixel 5","raven","google/redfin/redfin:12/SQ1A.220105.002/7961164:user/release-keys");    
                 } else if (type == 3) {
                     injectBuild(process,"Pixel XL","marlin","google/marlin/marlin:10/QP1A.191005.007.A3/5972272:user/release-keys");
                 }
