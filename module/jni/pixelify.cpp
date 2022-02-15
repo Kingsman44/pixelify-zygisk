@@ -13,9 +13,9 @@ using zygisk::AppSpecializeArgs;
 using zygisk::ServerSpecializeArgs;
 
 static std::vector<std::string> PkgList = {"com.google", "com.android.chrome","com.android.vending","com.breel.wallpapers20"};
-static std::vector<std::string> P5 = {"com.google.android.googlequicksearchbox", "com.google.android.tts" , "com.google.android.apps.recorder"};
+static std::vector<std::string> P5 = {"com.google.android.googlequicksearchbox", "com.google.android.tts" , "com.google.android.apps.recorder","com.google.android.gms"};
 static std::vector<std::string> P1 = {"com.google.android.apps.photos"};
-static std::vector<std::string> keep = {"com.google.android.GoogleCamera","com.google.android.gms"};
+static std::vector<std::string> keep = {"com.google.android.GoogleCamera"};
 
 class pixelify : public zygisk::ModuleBase {
 public:
@@ -40,15 +40,13 @@ public:
             LOGW("failed to inject android.os.Build for %s due to env is null", package_name);
             return;
         }
-        LOGI("inject android.os.Build for %s ", package_name);
-        LOGI("PRODUCT:%s",product1);
-        LOGI("MODEL:%s",model1);
-        LOGI("FINGERPRINT:%s",finger1);
-
+        	
         jclass build_class = env->FindClass("android/os/Build");
         if (build_class == nullptr) {
             LOGW("failed to inject android.os.Build for %s due to build is null", package_name);
             return;
+        } else {
+        	LOGI("inject android.os.Build for %s with \nPRODUCT:%s \nMODEL:%s \nFINGERPRINT:%s", package_name,product1,model1,finger1);
         }
 
         jstring product = env->NewStringUTF(product1);
@@ -56,7 +54,6 @@ public:
         jstring brand = env->NewStringUTF("google");
         jstring manufacturer = env->NewStringUTF("Google");
         jstring finger = env->NewStringUTF(finger1);
-
 
         jfieldID brand_id = env->GetStaticFieldID(build_class, "BRAND", "Ljava/lang/String;");
         if (brand_id != nullptr) {
@@ -82,11 +79,12 @@ public:
         if (model_id != nullptr) {
             env->SetStaticObjectField(build_class, model_id, model);
         }
-
-        jfieldID finger_id = env->GetStaticFieldID(build_class, "FINGERPRINT", "Ljava/lang/String;");
-        if (finger_id != nullptr) {
-            env->SetStaticObjectField(build_class, finger_id, finger);
-        }
+        if (strcmp(finger1,"") != 0) {
+	        jfieldID finger_id = env->GetStaticFieldID(build_class, "FINGERPRINT", "Ljava/lang/String;");
+	        if (finger_id != nullptr) {
+	            env->SetStaticObjectField(build_class, finger_id, finger);
+	        }
+    	}
 
         if(env->ExceptionCheck())
         {
@@ -97,7 +95,9 @@ public:
         env->DeleteLocalRef(manufacturer);
         env->DeleteLocalRef(product);
         env->DeleteLocalRef(model);
-        env->DeleteLocalRef(finger);
+        if (strcmp(finger1,"") != 0) {
+        	env->DeleteLocalRef(finger);
+    	}
     }
 
 private:
@@ -111,7 +111,6 @@ private:
         int fd = api->connectCompanion();
         read(fd, &r, sizeof(r));
         close(fd);
-        LOGD("example: process=[%s], r=[%u]\n", process, r);
         std::string package_name = process;
         for (auto &s : PkgList) {
             if (package_name.find(s) != std::string::npos) {
@@ -132,13 +131,14 @@ private:
                             type=0;
                     }
                 }
-                if (package_name.find("com.google.android.gms") != std::string::npos) {
-                    injectBuild(process,"Pixel 5","raven","google/raven/raven:12/SQ1D.220105.007/8030436:user/release-keys");
+                // Don't inject to gms unstable, might break cts.
+                if (package_name == "com.google.android.gms.unstable") {
+                    type=0;
                 }
                 if (type == 1) {
                     injectBuild(process,"Pixel 6 Pro","raven","google/raven/raven:12/SQ1D.220105.007/8030436:user/release-keys");
                 } else if (type == 2) {
-                    injectBuild(process,"Pixel 5","raven","google/redfin/redfin:12/SQ1A.220105.002/7961164:user/release-keys");    
+                    injectBuild(process,"Pixel 5","redfin","google/redfin/redfin:12/SQ1A.220105.002/7961164:user/release-keys");    
                 } else if (type == 3) {
                     injectBuild(process,"Pixel XL","marlin","google/marlin/marlin:10/QP1A.191005.007.A3/5972272:user/release-keys");
                 }
