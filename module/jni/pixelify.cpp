@@ -3,7 +3,9 @@
 #include <string>
 #include <vector>
 #include <fcntl.h>
+#include <fstream>
 #include <android/log.h>
+#include <sys/system_properties.h>
 
 #include "zygisk.hpp"
 #include "module.h"
@@ -13,9 +15,9 @@ using zygisk::AppSpecializeArgs;
 using zygisk::ServerSpecializeArgs;
 
 static std::vector<std::string> PkgList = {"com.google", "com.android.chrome","com.android.vending","com.breel.wallpapers20"};
-static std::vector<std::string> P5 = {"com.google.android.googlequicksearchbox", "com.google.android.tts" , "com.google.android.apps.recorder","com.google.android.gms"};
+static std::vector<std::string> P5 = {"com.google.android.googlequicksearchbox", "com.google.android.tts" , "com.google.android.apps.recorder","com.google.android.gms","com.google.android.apps.wearables.maestro.companion"};
 static std::vector<std::string> P1 = {"com.google.android.apps.photos"};
-static std::vector<std::string> keep = {"com.google.android.GoogleCamera"};
+static std::vector<std::string> keep = {"com.google.android.GoogleCamera","com.google.ar.core","com.google.vr.apps.ornament","com.google.android.youtube"};
 
 class pixelify : public zygisk::ModuleBase {
 public:
@@ -103,50 +105,62 @@ public:
 private:
     Api *api;
     JNIEnv *env;
+    bool tensor =false;
+    
+    inline bool exist (const std::string& name) {
+	    std::ifstream f(name.c_str());
+	    return f.good();
+	}
 
     void preSpecialize(const char *process) {
-        // Demonstrate connecting to to companion process
-        // We ask the companion for a random number
         unsigned r = 0;
         int fd = api->connectCompanion();
         read(fd, &r, sizeof(r));
         close(fd);
+
+        if (exist("/data/adb/modules/Pixelify/tensor") == true) {
+        	tensor=true;
+        	LOGI("Adjusting spoof according to tensor chip");
+        }
+
         std::string package_name = process;
+        int type = 0;
         for (auto &s : PkgList) {
             if (package_name.find(s) != std::string::npos) {
-                //injectBuild(process);
-                int type = 1;
+                type=1;
                 for (auto &s : P5) {
                     if (package_name.find(s) != std::string::npos) {
-                            type=2;
+                        type=2;
                     }
                 }
                 for (auto &s : P1) {
                     if (package_name.find(s) != std::string::npos) {
-                            type=3;
+                        type=3;
                     }
                 }
+
                 for (auto &s : keep) {
                     if (package_name.find(s) != std::string::npos) {
-                            type=0;
+                        type=0;
                     }
                 }
-                // Don't inject to gms unstable, might break cts.
-                if (package_name == "com.google.android.gms.unstable") {
-                    type=0;
-                }
-                if (type == 1) {
-                    injectBuild(process,"Pixel 6 Pro","raven","google/raven/raven:12/SQ1D.220105.007/8030436:user/release-keys");
+
+                if (tensor == true && type != 3) type=0;
+
+                if (strcmp(process,"com.google.android.gms.unstable") == 0) type=0;
+
+                if (type == 0) {
+                    api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY);
+                }  else if (type == 1) {
+                    injectBuild(process,"Pixel 6 Pro","raven","google/raven/raven:12/SQ1D.220205.003/8069835:user/release-keys");
                 } else if (type == 2) {
-                    injectBuild(process,"Pixel 5","redfin","google/redfin/redfin:12/SQ1A.220105.002/7961164:user/release-keys");    
+                    injectBuild(process,"Pixel 5","raven","google/raven/raven:12/SQ1D.220205.003/8069835:user/release-keys");
                 } else if (type == 3) {
                     injectBuild(process,"Pixel XL","marlin","google/marlin/marlin:10/QP1A.191005.007.A3/5972272:user/release-keys");
                 }
             }
         }
-
-        // Since we do not hook any functions, we should let Zygisk dlclose ourselves
-        api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY);
+        if (type == 0) api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY);
     }
 
 };
