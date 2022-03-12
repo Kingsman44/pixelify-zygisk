@@ -14,10 +14,10 @@ using zygisk::Api;
 using zygisk::AppSpecializeArgs;
 using zygisk::ServerSpecializeArgs;
 
-static std::vector<std::string> PkgList = {"com.google", "com.android.chrome","com.android.vending","com.breel.wallpapers20"};
+static std::vector<std::string> PkgList = {"com.google", "com.android.chrome","com.android.vending","com.breel.wallpapers20","com.snapchat.android"};
 static std::vector<std::string> P5 = {"com.google.android.googlequicksearchbox", "com.google.android.tts" , "com.google.android.apps.recorder","com.google.android.gms","com.google.android.apps.wearables.maestro.companion"};
 static std::vector<std::string> P1 = {"com.google.android.apps.photos"};
-static std::vector<std::string> keep = {"com.google.android.GoogleCamera","com.google.ar.core","com.google.vr.apps.ornament","com.google.android.youtube"};
+static std::vector<std::string> keep = {"com.google.android.GoogleCamera","com.google.ar.core","com.google.vr.apps.ornament","com.google.android.youtube","com.google.android.apps.motionsense.bridge"};
 
 class pixelify : public zygisk::ModuleBase {
 public:
@@ -121,7 +121,7 @@ private:
         if (exist("/data/adb/modules/Pixelify/tensor") == true) {
         	tensor=true;
         	LOGI("Adjusting spoof according to tensor chip");
-        }
+        } 
 
         std::string package_name = process;
         int type = 0;
@@ -158,9 +158,11 @@ private:
                 } else if (type == 3) {
                     injectBuild(process,"Pixel XL","marlin","google/marlin/marlin:10/QP1A.191005.007.A3/5972272:user/release-keys");
                 }
+
+            } else {
+            	api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY);
             }
         }
-        if (type == 0) api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY);
     }
 
 };
