@@ -4,6 +4,7 @@
 #include <vector>
 #include <fcntl.h>
 #include <android/log.h>
+#include <sys/system_properties.h>
 
 #include "zygisk.hpp"
 #include "module.h"
@@ -11,11 +12,6 @@
 using zygisk::Api;
 using zygisk::AppSpecializeArgs;
 using zygisk::ServerSpecializeArgs;
-
-static std::vector<std::string> PkgList = {"com.google", "com.android.chrome","com.android.vending","com.breel.wallpapers20","com.snapchat.android"};
-static std::vector<std::string> P5 = {"com.google.android.tts" , "com.google.android.apps.recorder","com.google.android.gms","com.google.android.apps.wearables.maestro.companion"};
-static std::vector<std::string> P1 = {"com.google.android.apps.photos"};
-static std::vector<std::string> keep = {"com.google.android.GoogleCamera","com.google.ar.core","com.google.vr.apps.ornament","com.google.android.youtube","com.google.android.apps.motionsense.bridge","com.google.android.systemui","com.google.android.xx"};
 
 class pixelify : public zygisk::ModuleBase {
 public:
@@ -109,52 +105,14 @@ private:
         int fd = api->connectCompanion();
         read(fd, &r, sizeof(r));
         close(fd);
-
+        int need_p6=0;
         std::string package_name = process;
-        int type = 0;
-        for (auto &s : PkgList) {
-            if (package_name.find(s) != std::string::npos) {
-                type=1;
-                break;
-            }
+        if (package_name.find("com.google.android.apps.photos") != std::string::npos) {
+            injectBuild(process,"Pixel XL","raven","google/marlin/marlin:10/QP1A.191005.007.A3/5972272:user/release-keys");
         }
-        for (auto &s : P5) {
-            if (package_name.find(s) != std::string::npos) {
-                type=2;
-                break;
-            }
-        }
-        for (auto &s : P1) {
-            if (package_name.find(s) != std::string::npos) {
-                type=3;
-                break;
-            }
-        }
-
-        for (auto &s : keep) {
-            if (package_name.find(s) != std::string::npos) {
-                type=0;
-                break;
-            }
-        }
-
-        if (strcmp(process,"com.google.android.gms:unstable") == 0 || strcmp(process,"com.google.android.gms.unstable") == 0) {
-            type=0;
-        }
-
-        if (strcmp(process,"com.google.android.apps.camera.services") == 0) type=1;
-
-        if (type == 1) {
-            injectBuild(process,"Pixel 6 Pro","raven","google/raven/raven:12/SP2A.220405.004/8233519:user/release-keys");
-        } else if (type == 2) {
-            injectBuild(process,"Pixel 5","raven","google/raven/raven:12/SP2A.220405.004/8233519:user/release-keys");
-        } else if (type == 3) {
-            injectBuild(process,"Pixel XL","raven","google/raven/raven:12/SP2A.220405.004/8233519:user/release-keys");
-        }
-
+        
         api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY);
     }
-
 };
 
 static int urandom = -1;

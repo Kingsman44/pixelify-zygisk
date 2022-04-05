@@ -5,6 +5,14 @@ LOCAL_MODULE := pixelify
 LOCAL_SRC_FILES := pixelify.cpp
 LOCAL_STATIC_LIBRARIES := libcxx
 LOCAL_LDLIBS := -llog
+
+include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := pixelify_un
+LOCAL_SRC_FILES := pixelify_un.cpp
+LOCAL_STATIC_LIBRARIES := libcxx
+LOCAL_LDLIBS := -llog
 include $(BUILD_SHARED_LIBRARY)
 
 include jni/libcxx/Android.mk
