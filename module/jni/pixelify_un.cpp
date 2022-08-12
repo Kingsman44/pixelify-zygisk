@@ -13,36 +13,45 @@ using zygisk::Api;
 using zygisk::AppSpecializeArgs;
 using zygisk::ServerSpecializeArgs;
 
-class pixelify : public zygisk::ModuleBase {
+class pixelify : public zygisk::ModuleBase
+{
 public:
-    void onLoad(Api *api, JNIEnv *env) override {
+    void onLoad(Api *api, JNIEnv *env) override
+    {
         this->api = api;
         this->env = env;
     }
 
-    void preAppSpecialize(AppSpecializeArgs *args) override {
+    void preAppSpecialize(AppSpecializeArgs *args) override
+    {
         // Use JNI to fetch our process name
         const char *process = env->GetStringUTFChars(args->nice_name, nullptr);
         preSpecialize(process);
         env->ReleaseStringUTFChars(args->nice_name, process);
     }
 
-    void preServerSpecialize(ServerSpecializeArgs *args) override {
+    void preServerSpecialize(ServerSpecializeArgs *args) override
+    {
         preSpecialize("system_server");
     }
 
-    void injectBuild(const char *package_name,const char *model1,const char *product1,const char *finger1) {
-        if (env == nullptr) {
+    void injectBuild(const char *package_name, const char *model1, const char *product1, const char *finger1)
+    {
+        if (env == nullptr)
+        {
             LOGW("failed to inject android.os.Build for %s due to env is null", package_name);
             return;
         }
-        	
+
         jclass build_class = env->FindClass("android/os/Build");
-        if (build_class == nullptr) {
+        if (build_class == nullptr)
+        {
             LOGW("failed to inject android.os.Build for %s due to build is null", package_name);
             return;
-        } else {
-        	LOGI("inject android.os.Build for %s with \nPRODUCT:%s \nMODEL:%s \nFINGERPRINT:%s", package_name,product1,model1,finger1);
+        }
+        else
+        {
+            LOGI("inject android.os.Build for %s with \nPRODUCT:%s \nMODEL:%s \nFINGERPRINT:%s", package_name, product1, model1, finger1);
         }
 
         jstring product = env->NewStringUTF(product1);
@@ -52,37 +61,44 @@ public:
         jstring finger = env->NewStringUTF(finger1);
 
         jfieldID brand_id = env->GetStaticFieldID(build_class, "BRAND", "Ljava/lang/String;");
-        if (brand_id != nullptr) {
+        if (brand_id != nullptr)
+        {
             env->SetStaticObjectField(build_class, brand_id, brand);
         }
 
         jfieldID manufacturer_id = env->GetStaticFieldID(build_class, "MANUFACTURER", "Ljava/lang/String;");
-        if (manufacturer_id != nullptr) {
+        if (manufacturer_id != nullptr)
+        {
             env->SetStaticObjectField(build_class, manufacturer_id, manufacturer);
         }
 
         jfieldID product_id = env->GetStaticFieldID(build_class, "PRODUCT", "Ljava/lang/String;");
-        if (product_id != nullptr) {
+        if (product_id != nullptr)
+        {
             env->SetStaticObjectField(build_class, product_id, product);
         }
 
         jfieldID device_id = env->GetStaticFieldID(build_class, "DEVICE", "Ljava/lang/String;");
-        if (device_id != nullptr) {
+        if (device_id != nullptr)
+        {
             env->SetStaticObjectField(build_class, device_id, product);
         }
 
         jfieldID model_id = env->GetStaticFieldID(build_class, "MODEL", "Ljava/lang/String;");
-        if (model_id != nullptr) {
+        if (model_id != nullptr)
+        {
             env->SetStaticObjectField(build_class, model_id, model);
         }
-        if (strcmp(finger1,"") != 0) {
-	        jfieldID finger_id = env->GetStaticFieldID(build_class, "FINGERPRINT", "Ljava/lang/String;");
-	        if (finger_id != nullptr) {
-	            env->SetStaticObjectField(build_class, finger_id, finger);
-	        }
-    	}
+        if (strcmp(finger1, "") != 0)
+        {
+            jfieldID finger_id = env->GetStaticFieldID(build_class, "FINGERPRINT", "Ljava/lang/String;");
+            if (finger_id != nullptr)
+            {
+                env->SetStaticObjectField(build_class, finger_id, finger);
+            }
+        }
 
-        if(env->ExceptionCheck())
+        if (env->ExceptionCheck())
         {
             env->ExceptionClear();
         }
@@ -91,34 +107,39 @@ public:
         env->DeleteLocalRef(manufacturer);
         env->DeleteLocalRef(product);
         env->DeleteLocalRef(model);
-        if (strcmp(finger1,"") != 0) {
-        	env->DeleteLocalRef(finger);
-    	}
+        if (strcmp(finger1, "") != 0)
+        {
+            env->DeleteLocalRef(finger);
+        }
     }
 
 private:
     Api *api;
     JNIEnv *env;
-    
-    void preSpecialize(const char *process) {
+
+    void preSpecialize(const char *process)
+    {
         unsigned r = 0;
         int fd = api->connectCompanion();
         read(fd, &r, sizeof(r));
         close(fd);
-        int need_p6=0;
+        int need_p6 = 0;
         std::string package_name = process;
-        if (package_name.find("com.google.android.apps.photos") != std::string::npos) {
-            injectBuild(process,"Pixel XL","raven","google/marlin/marlin:10/QP1A.191005.007.A3/5972272:user/release-keys");
+        if (package_name.find("com.google.android.apps.photos") != std::string::npos)
+        {
+            injectBuild(process, "Pixel XL", "marlin", "google/marlin/marlin:10/QP1A.191005.007.A3/5972272:user/release-keys");
         }
-        
+
         api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY);
     }
 };
 
 static int urandom = -1;
 
-static void companion_handler(int i) {
-    if (urandom < 0) {
+static void companion_handler(int i)
+{
+    if (urandom < 0)
+    {
         urandom = open("/dev/urandom", O_RDONLY);
     }
     unsigned r;
